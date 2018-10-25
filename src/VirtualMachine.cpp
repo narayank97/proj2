@@ -122,7 +122,7 @@ TVMStatus VMThreadCreate(TVMThreadEntry entry, void *param, TVMMemorySize memsiz
 	{
 		TMachineSignalState signalState;
   		MachineSuspendSignals(&signalState);
-		TCB * created_thread = new(TCB);
+		TCB *created_thread = new(TCB);
 		created_thread -> size = memsize;
 		created_thread -> id = *tid;
 		created_thread -> priority = prio;
@@ -137,15 +137,121 @@ TVMStatus VMThreadCreate(TVMThreadEntry entry, void *param, TVMMemorySize memsiz
 }
 TVMStatus VMThreadDelete(TVMThreadID thread)
 {
-	return 0;
+	TMachineSignalState signalState;
+	MachineSuspendSignals(&signalState);
+
+	int thread_found = 0; // its false
+	int i = 0;
+
+	TVMThreadID curr_id;
+	for(i = 0; i < TCB_ptrs.size(); i++)
+	{
+		curr_id = TCB_ptrs[i] -> id;
+		if(curr_id == thread)
+		{
+			thread_found = 1;
+			break;
+		}
+	}
+	if(thread_found == 1)
+	{
+		if(TCB_ptrs[i]-> state == VM_THREAD_STATE_DEAD)
+		{
+	 		TCB_ptrs[i] = NULL;
+			MachineResumeSignals(&signalState);
+			return VM_STATUS_SUCCESS;
+		}
+		else
+		{
+			MachineResumeSignals(&signalState);
+			return VM_STATUS_ERROR_INVALID_STATE;
+		}
+	}
+	else
+	{
+		MachineResumeSignals(&signalState);
+		return VM_STATUS_ERROR_INVALID_ID;
+	}
 }
 TVMStatus VMThreadActivate(TVMThreadID thread)
 {
+	TMachineSignalState signalState;
+	MachineSuspendSignals(&signalState);
+
+	int thread_found = 0; // its false
+	int i = 0;
+
+	TVMThreadID curr_id;
+	for(i = 0; i < TCB_ptrs.size(); i++)
+	{
+		curr_id = TCB_ptrs[i] -> id;
+		if(curr_id == thread)
+		{
+			thread_found = 1;
+			break;
+		}
+	}
+	if(thread_found == 1)
+	{
+		if(TCB_ptrs[i]-> state == VM_THREAD_STATE_DEAD)
+		{
+	 		TCB_ptrs[i] -> state = VM_THREAD_STATE_READY;
+			MachineResumeSignals(&signalState);
+			return VM_STATUS_SUCCESS;
+		}
+		else
+		{
+			MachineResumeSignals(&signalState);
+			return VM_STATUS_ERROR_INVALID_STATE;
+		}
+	}
+	else
+	{
+		MachineResumeSignals(&signalState);
+		return VM_STATUS_ERROR_INVALID_ID;
+	}
+
 	return 0;
 }
 TVMStatus VMThreadTerminate(TVMThreadID thread)
 {
-	return 0;
+	TMachineSignalState signalState;
+	MachineSuspendSignals(&signalState);
+
+	int thread_found = 0; // its false
+	int i = 0;
+
+	TVMThreadID curr_id;
+	for(i = 0; i < TCB_ptrs.size(); i++)
+	{
+		curr_id = TCB_ptrs[i] -> id;
+		if(curr_id == thread)
+		{
+			thread_found = 1;
+			break;
+		}
+	}
+	if(thread_found == 1)
+	{
+		if(TCB_ptrs[i]-> state == VM_THREAD_STATE_DEAD)
+		{
+			MachineResumeSignals(&signalState);
+			return VM_STATUS_ERROR_INVALID_STATE;
+		}
+		else
+		{
+			TCB_ptrs[i] -> state = VM_THREAD_STATE_DEAD;
+			// schedule another thread HERE
+			MachineResumeSignals(&signalState);
+			return VM_STATUS_SUCCESS;
+		}
+	}
+	else
+	{
+		MachineResumeSignals(&signalState);
+		return VM_STATUS_ERROR_INVALID_ID;
+	}
+
 }
 TVMStatus VMThreadID(TVMThreadIDRef threadref)
 {
@@ -156,19 +262,49 @@ TVMStatus VMThreadID(TVMThreadIDRef threadref)
 
 	else
 	{
-		/*TMachineSignalState signalState;
+		TMachineSignalState signalState;
 		MachineSuspendSignals(&signalState);
-		threadref = current_thread -> id;
-		MachineResumeSignals(&signalState);*/
+		//threadref = current_thread -> id;
+		MachineResumeSignals(&signalState);
 		return VM_STATUS_SUCCESS;
-
 	}
 
 	return 0;
 }
 TVMStatus VMThreadState(TVMThreadID thread, TVMThreadStateRef stateref)
 {
-	//for(int i = 0; i < )
+	TMachineSignalState signalState;
+	MachineSuspendSignals(&signalState);
+
+	int thread_found = 0; // its false
+	int i = 0;
+
+	if(stateref == NULL)
+	{
+		MachineResumeSignals(&signalState);
+		return VM_STATUS_ERROR_INVALID_PARAMETER;
+	}
+	TVMThreadID curr_id;
+	for(i = 0; i < TCB_ptrs.size(); i++)
+	{
+		curr_id = TCB_ptrs[i] -> id;
+		if(curr_id == thread)
+		{
+			thread_found = 1;
+			break;
+		}
+	}
+	if(thread_found == 1)
+	{
+		*stateref = TCB_ptrs[i] -> state;
+		MachineResumeSignals(&signalState);
+		return VM_STATUS_SUCCESS;
+	}
+	else
+	{
+		MachineResumeSignals(&signalState);
+		return VM_STATUS_ERROR_INVALID_ID;
+	}
 }
 TVMStatus VMThreadSleep(TVMTick tick)
 {
@@ -176,7 +312,7 @@ TVMStatus VMThreadSleep(TVMTick tick)
 }
 
 
-/*TVMStatus VMFileClose(int filedescriptor)
+TVMStatus VMFileClose(int filedescriptor)
 {
 	return 0;
 }
@@ -187,7 +323,7 @@ TVMStatus VMFileRead(int filedescriptor, void *data, int *length)
 TVMStatus VMFileSeek(int filedescriptor, int offset, int whence, int *newoffset)
 {
 	return 0;
-}*/
+}
 /*TVMStatus VMFilePrint(int filedescriptor, const char *format, ...)
 {
 	return 0;
