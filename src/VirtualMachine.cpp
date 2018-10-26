@@ -4,6 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <vector>
+#include <deque>
 #include <new>
 #include <iostream>
 #include <dlfcn.h>
@@ -32,9 +33,9 @@ typedef struct{
 
 vector<TCB*> TCB_ptrs; // vector for threads
 vector<TCB*> ready_threads;
-vector<TCB*> HIGH_priority;
-vector<TCB*> MEDIUM_priority;
-vector<TCB*> LOW_priority;
+deque<TCB*> HIGH_priority;
+deque<TCB*> MEDIUM_priority;
+deque<TCB*> LOW_priority;
 
 TVMThreadID current_ThreadID;
 TCB *next_thread = new(TCB);
@@ -45,68 +46,51 @@ void scheduler()
 	SMachineContextRef previous_context;
 	SMachineContextRef new_current_context;
 	unsigned int i = 0;
-	for(i = 0; i < HIGH_priority.size(); i++) // loops through HIGH_priority threads
-	{
-		if(HIGH_priority[i] == NULL)
-		{
-			break;
-		}
-		else
+
+		if(HIGH_priority[0] != NULL) //checks HIGH_priority queue
 		{
 			if(current_ThreadID == HIGH_priority[i] -> id)
 			{
 				previous_context = &HIGH_priority[i] -> context;
 			}
 			next_thread = HIGH_priority[i];
+			HIGH_priority.pop_front();
 			current_ThreadID = next_thread -> id;
 			new_current_context = &next_thread -> context;
 			next_thread -> state = VM_THREAD_STATE_RUNNING;
 			MachineContextSwitch(previous_context,new_current_context);
 			return;
 		}
-	}
-	for(i = 0; i < MEDIUM_priority.size(); i++) // loops through Medium Priority threads
-	{
-		if(MEDIUM_priority[i] == NULL)
-		{
-			break;
-		}
-		else
+
+		if(MEDIUM_priority[0] != NULL ) //checks MEDIUM_priority queue
 		{
 			if(current_ThreadID == MEDIUM_priority[i] -> id)
 			{
 				previous_context = &MEDIUM_priority[i] -> context;
 			}
 			next_thread = MEDIUM_priority[i];
+			MEDIUM_priority.pop_front();
 			current_ThreadID = next_thread -> id;
 			new_current_context = &next_thread -> context;
 			next_thread -> state = VM_THREAD_STATE_RUNNING;
 			MachineContextSwitch(previous_context,new_current_context);
 			return;
 		}
-	}
-	for(i = 0; i < LOW_priority.size(); i++) // Loops through low priority thrads
-	{
-		if(LOW_priority[i] == NULL)
-		{
-			break;
-		}
-		else // if it exists then next thread becomes the earliest TCB
+
+		if(LOW_priority[0] != NULL) //checks LOW_priority queue
 		{
 			if(current_ThreadID == LOW_priority[i] -> id)
 			{
 				previous_context = &LOW_priority[i] -> context;
 			}
 			next_thread = LOW_priority[i];
+			LOW_priority.pop_front();
 			current_ThreadID = next_thread -> id;
 			new_current_context = &next_thread -> context;
 			next_thread -> state = VM_THREAD_STATE_RUNNING;
 			MachineContextSwitch(previous_context,new_current_context);
 			return;
 		}
-	}
-
-
 }
 
 int tick = 0;
